@@ -7,9 +7,9 @@ NetCheck is a cross-platform CLI for local network risk checks with optional AI 
 ## Option A: install directly from GitHub (no manual clone)
 
 ```bash
-npm install -g git+https://github.com/<org>/<repo>.git
+npm install -g git+https://github.com/Harry1620/CNS-PROJECT.git
 # or
-pnpm add -g git+https://github.com/<org>/<repo>.git
+pnpm add -g git+https://github.com/Harry1620/CNS-PROJECT.git
 ```
 
 Then verify:
