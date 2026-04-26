@@ -52,6 +52,7 @@ Add `--force` if pnpm asks to overwrite an existing binary.
 - `netcheck watch`
 - `netcheck web`
 - `netcheck report --json`
+- `netcheck doctor`
 - `netcheck ai setup|set|test`
 - `netcheck update`
 

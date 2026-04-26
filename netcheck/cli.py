@@ -3,9 +3,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform
+import sqlite3
 import sys
+from datetime import datetime
 
-from .config import ensure_storage, load_config, save_config
+from .config import CONFIG_PATH, DB_PATH, DATA_DIR, ensure_storage, load_config, save_config
 from .scanner import recent_scans, run_scan
 from .watcher import watch
 from .web import run_server
@@ -19,11 +22,110 @@ def cmd_init(_: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_scan(_: argparse.Namespace) -> int:
+def cmd_scan(args: argparse.Namespace) -> int:
     result = run_scan()
-    print(f"Scan complete: risk={result.risk_score} findings={len(result.findings)}")
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "created_at": result.created_at,
+                    "risk_score": result.risk_score,
+                    "context": result.context,
+                    "findings": [f.__dict__ for f in result.findings],
+                },
+                indent=2,
+            )
+        )
+        return 0
+
+    _render_scan_ui(result)
+    return 0
+
+
+def _render_scan_ui(result) -> None:
+    context = result.context
+    print("◊  Scan complete")
+    print("│")
+    print("├─ Environment")
+    print(f"│  Collected at: {result.created_at}")
+    print(f"│  OS: {context.get('platform', 'unknown')}")
+    print(f"│  Default interface: {context.get('adapter', 'unknown')}")
+    print(f"│  Gateway: {context.get('gateway') or 'n/a'}")
+    print(f"│  DNS: {', '.join(context.get('dns', [])) or 'n/a'}")
+    print(f"│  Active Wi-Fi: {context.get('ssid') or 'n/a'} ({context.get('auth') or 'unknown'})")
+    print("│")
+
+    counts = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
     for f in result.findings:
-        print(f"- [{f.severity}] {f.category}: {f.title} ({f.confidence})")
+        key = f.severity.lower()
+        if key in counts:
+            counts[key] += 1
+
+    print("├─ Scan summary")
+    print(f"│  Risk score: {result.risk_score}/100")
+    print(f"│  Findings: {len(result.findings)}")
+    print(
+        "│  "
+        f"Critical {counts['critical']} | High {counts['high']} | Medium {counts['medium']} | "
+        f"Low {counts['low']} | Info {counts['info']}"
+    )
+    print("│")
+
+    if not result.findings:
+        print("└─ No findings detected.")
+        return
+
+    print("└─ Findings")
+    for f in result.findings:
+        sev = f.severity.upper()
+        print(f"   [{sev}] {f.title}")
+        print(f"   Category: {f.category}")
+        print(f"   Details: {f.details}")
+        print(f"   Confidence: {f.confidence}")
+        print("   ─")
+
+
+def cmd_doctor(_: argparse.Namespace) -> int:
+    ensure_storage()
+    print("NetCheck doctor")
+    print("│")
+    print("├─ Diagnostics")
+    print(f"│  Python: {platform.python_version()}")
+    print(f"│  Platform: {platform.platform()}")
+    print(f"│  Data dir: {DATA_DIR}")
+    print(f"│  Config path: {CONFIG_PATH}")
+    print(f"│  DB path: {DB_PATH}")
+    print(f"│  Config exists: {CONFIG_PATH.exists()}")
+    print(f"│  DB exists: {DB_PATH.exists()}")
+    print(f"│  AI provider: {load_config()['ai']['provider']}")
+
+    scan_count = 0
+    findings_count = 0
+    db_ok = False
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        scan_count = cur.execute("SELECT COUNT(*) FROM scans").fetchone()[0]
+        findings_count = cur.execute("SELECT COUNT(*) FROM findings").fetchone()[0]
+        conn.close()
+        db_ok = True
+    except Exception:
+        db_ok = False
+
+    print(f"│  DB readable: {db_ok}")
+    print(f"│  Stored scans: {scan_count}")
+    print(f"│  Stored findings: {findings_count}")
+    print("│")
+
+    latest = recent_scans(limit=1)
+    if latest:
+        s = latest[0]
+        print("└─ Latest scan")
+        print(f"   Time: {s['created_at']}")
+        print(f"   Risk: {s['risk_score']}")
+        print(f"   Findings: {len(s['findings'])}")
+    else:
+        print("└─ Latest scan: none")
     return 0
 
 
@@ -50,7 +152,8 @@ def cmd_report(args: argparse.Namespace) -> int:
         print(json.dumps(scans, indent=2))
     else:
         for s in scans:
-            print(f"{s['created_at']} risk={s['risk_score']} findings={len(s['findings'])}")
+            ts = datetime.fromisoformat(s["created_at"]).strftime("%Y-%m-%d %H:%M:%S")
+            print(f"{ts}  risk={s['risk_score']}  findings={len(s['findings'])}")
     return 0
 
 
@@ -106,7 +209,11 @@ def build_parser() -> argparse.ArgumentParser:
     sp_init.set_defaults(func=cmd_init)
 
     sp_scan = sub.add_parser("scan")
+    sp_scan.add_argument("--json", action="store_true")
     sp_scan.set_defaults(func=cmd_scan)
+
+    sp_doctor = sub.add_parser("doctor")
+    sp_doctor.set_defaults(func=cmd_doctor)
 
     sp_watch = sub.add_parser("watch")
     sp_watch.add_argument("--interval", type=int)
