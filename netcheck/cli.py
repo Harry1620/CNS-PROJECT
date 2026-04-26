@@ -16,6 +16,38 @@ from .web import run_server
 VALID_PROVIDERS = {"none", "openai", "claude", "copilot", "opencode"}
 
 
+class Ansi:
+    reset = "\033[0m"
+    bold = "\033[1m"
+    dim = "\033[2m"
+    green = "\033[32m"
+    yellow = "\033[33m"
+    red = "\033[31m"
+    magenta = "\033[35m"
+    cyan = "\033[36m"
+
+
+def use_color() -> bool:
+    return sys.stdout.isatty() and not os.getenv("NO_COLOR")
+
+
+def c(text: str, color: str) -> str:
+    if not use_color():
+        return text
+    return f"{color}{text}{Ansi.reset}"
+
+
+def severity_color(sev: str) -> str:
+    sev = sev.lower()
+    if sev == "critical":
+        return Ansi.magenta
+    if sev == "high":
+        return Ansi.red
+    if sev == "medium":
+        return Ansi.yellow
+    return Ansi.cyan
+
+
 def cmd_init(_: argparse.Namespace) -> int:
     paths = ensure_storage()
     print(f"Initialized NetCheck at {paths.data_dir}")
@@ -44,16 +76,17 @@ def cmd_scan(args: argparse.Namespace) -> int:
 
 def _render_scan_ui(result) -> None:
     context = result.context
-    print("◊  Scan complete")
-    print("│")
-    print("├─ Environment")
-    print(f"│  Collected at: {result.created_at}")
-    print(f"│  OS: {context.get('platform', 'unknown')}")
-    print(f"│  Default interface: {context.get('adapter', 'unknown')}")
-    print(f"│  Gateway: {context.get('gateway') or 'n/a'}")
-    print(f"│  DNS: {', '.join(context.get('dns', [])) or 'n/a'}")
-    print(f"│  Active Wi-Fi: {context.get('ssid') or 'n/a'} ({context.get('auth') or 'unknown'})")
-    print("│")
+    print(c("● NetCheck scan complete", Ansi.green + Ansi.bold))
+    print(c("─" * 72, Ansi.dim))
+
+    print(c("Environment", Ansi.bold))
+    print(f"  Collected at: {result.created_at}")
+    print(f"  OS: {context.get('platform', 'unknown')}")
+    print(f"  Default interface: {context.get('adapter', 'unknown')}")
+    print(f"  Gateway: {context.get('gateway') or 'n/a'}")
+    print(f"  DNS: {', '.join(context.get('dns', [])) or 'n/a'}")
+    print(f"  Active Wi-Fi: {context.get('ssid') or 'n/a'} ({context.get('auth') or 'unknown'})")
+    print()
 
     counts = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
     for f in result.findings:
@@ -61,43 +94,47 @@ def _render_scan_ui(result) -> None:
         if key in counts:
             counts[key] += 1
 
-    print("├─ Scan summary")
-    print(f"│  Risk score: {result.risk_score}/100")
-    print(f"│  Findings: {len(result.findings)}")
-    print(
-        "│  "
-        f"Critical {counts['critical']} | High {counts['high']} | Medium {counts['medium']} | "
-        f"Low {counts['low']} | Info {counts['info']}"
+    print(c("Scan summary", Ansi.bold))
+    print(f"  Risk score: {result.risk_score}/100")
+    print(f"  Findings: {len(result.findings)}")
+    sev_row = (
+        f"{c('Critical', Ansi.magenta)} {counts['critical']} | "
+        f"{c('High', Ansi.red)} {counts['high']} | "
+        f"{c('Medium', Ansi.yellow)} {counts['medium']} | "
+        f"{c('Low', Ansi.cyan)} {counts['low']} | "
+        f"Info {counts['info']}"
     )
-    print("│")
+    print(f"  {sev_row}")
+    print(c("─" * 72, Ansi.dim))
 
     if not result.findings:
-        print("└─ No findings detected.")
+        print(c("No findings detected.", Ansi.green))
         return
 
-    print("└─ Findings")
-    for f in result.findings:
-        sev = f.severity.upper()
-        print(f"   [{sev}] {f.title}")
-        print(f"   Category: {f.category}")
-        print(f"   Details: {f.details}")
-        print(f"   Confidence: {f.confidence}")
-        print("   ─")
+    print(c("Findings", Ansi.bold))
+    for idx, f in enumerate(result.findings, start=1):
+        sev = c(f"[{f.severity.upper()}]", severity_color(f.severity) + Ansi.bold)
+        print(f"{idx:>2}. {sev} {f.title}")
+        print(f"    Category: {f.category}")
+        print(f"    Details: {f.details}")
+        print(f"    Confidence: {f.confidence}")
+        if idx != len(result.findings):
+            print(c("    ···", Ansi.dim))
 
 
 def cmd_doctor(_: argparse.Namespace) -> int:
     ensure_storage()
-    print("NetCheck doctor")
-    print("│")
-    print("├─ Diagnostics")
-    print(f"│  Python: {platform.python_version()}")
-    print(f"│  Platform: {platform.platform()}")
-    print(f"│  Data dir: {DATA_DIR}")
-    print(f"│  Config path: {CONFIG_PATH}")
-    print(f"│  DB path: {DB_PATH}")
-    print(f"│  Config exists: {CONFIG_PATH.exists()}")
-    print(f"│  DB exists: {DB_PATH.exists()}")
-    print(f"│  AI provider: {load_config()['ai']['provider']}")
+    print(c("NetCheck doctor", Ansi.bold))
+    print(c("─" * 72, Ansi.dim))
+    print(c("Diagnostics", Ansi.bold))
+    print(f"  Python: {platform.python_version()}")
+    print(f"  Platform: {platform.platform()}")
+    print(f"  Data dir: {DATA_DIR}")
+    print(f"  Config path: {CONFIG_PATH}")
+    print(f"  DB path: {DB_PATH}")
+    print(f"  Config exists: {CONFIG_PATH.exists()}")
+    print(f"  DB exists: {DB_PATH.exists()}")
+    print(f"  AI provider: {load_config()['ai']['provider']}")
 
     scan_count = 0
     findings_count = 0
@@ -112,20 +149,20 @@ def cmd_doctor(_: argparse.Namespace) -> int:
     except Exception:
         db_ok = False
 
-    print(f"│  DB readable: {db_ok}")
-    print(f"│  Stored scans: {scan_count}")
-    print(f"│  Stored findings: {findings_count}")
-    print("│")
+    print(f"  DB readable: {db_ok}")
+    print(f"  Stored scans: {scan_count}")
+    print(f"  Stored findings: {findings_count}")
 
     latest = recent_scans(limit=1)
+    print(c("─" * 72, Ansi.dim))
     if latest:
         s = latest[0]
-        print("└─ Latest scan")
-        print(f"   Time: {s['created_at']}")
-        print(f"   Risk: {s['risk_score']}")
-        print(f"   Findings: {len(s['findings'])}")
+        print(c("Latest scan", Ansi.bold))
+        print(f"  Time: {s['created_at']}")
+        print(f"  Risk: {s['risk_score']}")
+        print(f"  Findings: {len(s['findings'])}")
     else:
-        print("└─ Latest scan: none")
+        print("Latest scan: none")
     return 0
 
 
