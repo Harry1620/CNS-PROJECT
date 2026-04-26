@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "netcheck"
+version = "0.1.0"
+description = "Cross-platform local network risk scanner with optional AI assistance"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+netcheck = "netcheck.cli:main"
+
+[tool.setuptools]
+packages = ["netcheck"]
