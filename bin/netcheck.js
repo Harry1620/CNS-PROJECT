@@ -4,7 +4,7 @@ const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
 
-const HELP = `NetCheck CLI\n\nUsage:\n  netcheck <command> [options]\n\nCommands:\n  init             Create local config and defaults\n  scan             One-time vulnerability scan\n  watch            Monitor connection changes and rescan\n  web              Start local dashboard + open browser\n  report --json    Export findings\n  ai setup         Explain AI setup\n  ai set           Configure AI provider\n  ai test          Test AI configuration\n  update           Update global install from source\n\nSupported AI providers:\n  none, openai, claude, copilot, opencode\n\nInstall from git (no manual clone):\n  npm install -g git+https://github.com/<org>/<repo>.git\n  pnpm add -g git+https://github.com/<org>/<repo>.git\n\nLocal dev linking:\n  npm link\n  pnpm link --global\n\nUpdate examples:\n  netcheck update --manager npm --source git+https://github.com/<org>/<repo>.git\n  netcheck update --manager pnpm --source git+https://github.com/<org>/<repo>.git\n`;
+const HELP = `NetCheck CLI\n\nUsage:\n  netcheck <command> [options]\n\nCommands:\n  init             Create local config and defaults\n  scan             One-time vulnerability scan\n  watch            Monitor connection changes and rescan\n  web              Start local dashboard + open browser\n  report --json    Export findings\n  ai setup         Explain AI setup\n  ai set           Configure AI provider\n  ai test          Test AI configuration\n  update           Update global install with pnpm\n\nSupported AI providers:\n  none, openai, claude, copilot, opencode\n\nInstall (pnpm only, no manual clone):\n  pnpm add -g git+https://github.com/<org>/<repo>.git\n\nUpdate examples:\n  netcheck update --source git+https://github.com/<org>/<repo>.git\n  NETCHECK_UPDATE_SOURCE=git+https://github.com/<org>/<repo>.git netcheck update\n`;
 
 const args = process.argv.slice(2);
 
@@ -14,7 +14,6 @@ if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
 }
 
 if (args[0] === 'update') {
-  const manager = readArg(args, '--manager') || 'npm';
   const source = readArg(args, '--source') || process.env.NETCHECK_UPDATE_SOURCE || '';
   const force = args.includes('--force');
   if (!source) {
@@ -22,17 +21,22 @@ if (args[0] === 'update') {
     process.exit(2);
   }
 
-  let command;
-  if (manager === 'npm') {
-    command = ['install', '-g', source, ...(force ? ['--force'] : [])];
-  } else if (manager === 'pnpm') {
-    command = ['add', '-g', source, ...(force ? ['--force'] : [])];
-  } else {
-    process.stderr.write("Unsupported manager. Use '--manager npm' or '--manager pnpm'.\n");
-    process.exit(2);
+  const check = spawnSync('pnpm', ['bin', '-g'], { encoding: 'utf8' });
+  if (check.error) {
+    process.stderr.write('pnpm is required for update. Install pnpm and ensure it is in PATH.\n');
+    process.exit(1);
+  }
+  if (check.status !== 0) {
+    process.stderr.write('pnpm global bin is not configured. Run `pnpm setup`, restart shell, then retry.\n');
+    process.exit(check.status ?? 1);
   }
 
-  const result = spawnSync(manager, command, { stdio: 'inherit' });
+  const result = spawnSync('pnpm', ['add', '-g', source, ...(force ? ['--force'] : [])], { encoding: 'utf8' });
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
+  if (result.status !== 0 && (result.stderr || '').includes('ERR_PNPM_NO_GLOBAL_BIN_DIR')) {
+    process.stderr.write('pnpm global bin is not configured. Run `pnpm setup`, restart shell, then retry.\n');
+  }
   process.exit(result.status ?? 1);
 }
 

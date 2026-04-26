@@ -2,14 +2,10 @@
 
 NetCheck is a cross-platform CLI for local network risk checks with optional AI guidance.
 
-## Install (Windows/macOS/Linux)
-
-## Option A: install directly from GitHub (no manual clone)
+## Install (pnpm only)
 
 ```bash
-npm install -g git+https://github.com/Harry1620/CNS-PROJECT.git
-# or
-pnpm add -g git+https://github.com/Harry1620/CNS-PROJECT.git
+pnpm add -g git+https://github.com/<org>/<repo>.git
 ```
 
 Then verify:
@@ -18,32 +14,36 @@ Then verify:
 netcheck --help
 ```
 
-## Option B: local development link
+## If Windows says `Unknown command: update`
 
-```bash
-# from the project folder
-npm link
-# or
-pnpm link --global
+You are likely running a different `netcheck` binary already present on your machine.
+
+Fix it with:
+
+```powershell
+npm uninstall -g netcheck netcheck-cli
+pnpm remove -g netcheck netcheck-cli
+pnpm add -g git+https://github.com/<org>/<repo>.git
+Get-Command netcheck
 ```
 
-This creates a global `netcheck` command symlink for local testing.
+The final command should point to pnpm global bin path.
 
 ## Update command
 
 ```bash
-netcheck update --manager npm --source git+https://github.com/<org>/<repo>.git
-# or
-netcheck update --manager pnpm --source git+https://github.com/<org>/<repo>.git
+netcheck update --source git+https://github.com/<org>/<repo>.git
 ```
 
-You can also set `NETCHECK_UPDATE_SOURCE` and run just:
+or set the source once:
 
 ```bash
-netcheck update --manager npm
+# Windows PowerShell
+$env:NETCHECK_UPDATE_SOURCE='git+https://github.com/<org>/<repo>.git'
+netcheck update
 ```
 
-Add `--force` when your package manager asks to overwrite an existing global binary.
+Add `--force` if pnpm asks to overwrite an existing binary.
 
 ## Commands
 

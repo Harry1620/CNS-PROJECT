@@ -8,10 +8,8 @@
   "type": "commonjs",
   "scripts": {
     "test:help": "node bin/netcheck.js --help",
-    "link:npm": "npm link",
     "link:pnpm": "pnpm link --global",
-    "update:npm": "node bin/netcheck.js update --manager npm",
-    "update:pnpm": "node bin/netcheck.js update --manager pnpm"
+    "update:pnpm": "node bin/netcheck.js update"
   },
   "engines": {
     "node": ">=18"
