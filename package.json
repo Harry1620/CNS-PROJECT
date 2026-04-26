@@ -1,5 +1,6 @@
 {
   "name": "netcheck-cli",
+  "name": "@netcheck/cli",
   "version": "0.1.0",
   "description": "NetCheck cross-platform CLI launcher",
   "bin": {
