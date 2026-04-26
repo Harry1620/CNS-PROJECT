@@ -2,35 +2,48 @@
 
 NetCheck is a cross-platform CLI for local network risk checks with optional AI guidance.
 
-## Install
+## Install (Windows/macOS/Linux)
 
-### Option A (recommended right now): install from this repository folder
+## Option A: install directly from GitHub (no manual clone)
 
 ```bash
-npm install -g .
+npm install -g git+https://github.com/<org>/<repo>.git
 # or
-pnpm add -g .
+pnpm add -g git+https://github.com/<org>/<repo>.git
 ```
 
-Then run:
+Then verify:
 
 ```bash
 netcheck --help
 ```
 
-### Why you saw npm/pnpm 404
+## Option B: local development link
 
-If you run `npm add -g @netcheck/cli` (or `pnpm add -g @netcheck/cli`) you get 404 because that scoped package is **not published** on npm registry yet.
-Global install via npm/pnpm:
+```bash
+# from the project folder
+npm link
+# or
+pnpm link --global
+```
 
-- `npm install -g @netcheck/cli`
-- `pnpm add -g @netcheck/cli`
+This creates a global `netcheck` command symlink for local testing.
 
-Then run:
+## Update command
 
-- `netcheck --help`
+```bash
+netcheck update --manager npm --source git+https://github.com/<org>/<repo>.git
+# or
+netcheck update --manager pnpm --source git+https://github.com/<org>/<repo>.git
+```
 
-> Note: full scan execution requires Python 3 and this repository's Python package installed.
+You can also set `NETCHECK_UPDATE_SOURCE` and run just:
+
+```bash
+netcheck update --manager npm
+```
+
+Add `--force` when your package manager asks to overwrite an existing global binary.
 
 ## Commands
 
@@ -40,35 +53,15 @@ Then run:
 - `netcheck web`
 - `netcheck report --json`
 - `netcheck ai setup|set|test`
+- `netcheck update`
 
 ## Requirements
 
 - Python 3 must be installed for full scan execution.
-- The launcher forwards commands to `python -m netcheck.cli`.
+- The Node launcher executes the bundled Python CLI script.
 
 ## Privacy defaults
 
 - Data path: `~/.netcheck/`
 - Web bind: `127.0.0.1`
 - AI receives only sanitized summaries by default
-# NetCheck (V1 scaffold)
-
-Cross-platform local-first network risk CLI.
-
-## Commands
-
-- `./netcheck.py init`
-- `./netcheck.py scan`
-- `./netcheck.py watch --interval 5`
-- `./netcheck.py web`
-- `./netcheck.py report --json`
-- `./netcheck.py ai setup|set|test`
-
-## Data and privacy defaults
-
-- Data directory: `~/.netcheck/`
-- Config: `~/.netcheck/config.json`
-- SQLite history: `~/.netcheck/netcheck.db`
-- Logs directory: `~/.netcheck/logs`
-- Web bind default: `127.0.0.1:8765`
-- Scans work without AI and always return deterministic recommendations.

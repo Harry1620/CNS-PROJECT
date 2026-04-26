@@ -1,6 +1,5 @@
 {
   "name": "netcheck-cli",
-  "name": "@netcheck/cli",
   "version": "0.1.0",
   "description": "NetCheck cross-platform CLI launcher",
   "bin": {
@@ -8,7 +7,11 @@
   },
   "type": "commonjs",
   "scripts": {
-    "test:help": "node bin/netcheck.js --help"
+    "test:help": "node bin/netcheck.js --help",
+    "link:npm": "npm link",
+    "link:pnpm": "pnpm link --global",
+    "update:npm": "node bin/netcheck.js update --manager npm",
+    "update:pnpm": "node bin/netcheck.js update --manager pnpm"
   },
   "engines": {
     "node": ">=18"
