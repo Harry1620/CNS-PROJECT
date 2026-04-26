@@ -1,0 +1,21 @@
+{
+  "name": "netcheck-cli",
+  "version": "0.1.0",
+  "description": "NetCheck cross-platform CLI launcher",
+  "bin": {
+    "netcheck": "bin/netcheck.js"
+  },
+  "type": "commonjs",
+  "scripts": {
+    "test:help": "node bin/netcheck.js --help",
+    "link:pnpm": "pnpm link --global",
+    "update:pnpm": "node bin/netcheck.js update"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT"
+}
