@@ -45,7 +45,32 @@ def severity_color(sev: str) -> str:
         return Ansi.red
     if sev == "medium":
         return Ansi.yellow
-    return Ansi.cyan
+    if sev == "low":
+        return Ansi.cyan
+    return Ansi.dim
+
+
+def _section_title(title: str) -> None:
+    marker = c("◊", Ansi.green)
+    print(f"{marker}  {title} " + c("─" * 42, Ansi.dim))
+
+
+def _boxed(lines: list[str], width: int = 64) -> None:
+    print(c("┌" + "─" * (width - 2) + "┐", Ansi.dim))
+    for line in lines:
+        trimmed = line[: width - 4]
+        print(c("│ ", Ansi.dim) + f"{trimmed:<{width - 4}}" + c(" │", Ansi.dim))
+    print(c("└" + "─" * (width - 2) + "┘", Ansi.dim))
+
+
+def _suggest_fix(category: str) -> str:
+    suggestions = {
+        "dns": "Use trusted DNS or DNS-over-HTTPS/TLS and verify resolver policy.",
+        "gateway": "Restrict router admin access and disable remote WAN administration.",
+        "wifi": "Prefer WPA3 where available and rotate Wi-Fi credentials.",
+        "stack": "Check vendor updates for adapter drivers and OS network stack patches.",
+    }
+    return suggestions.get(category, "Review local network security policy and remediate configuration drift.")
 
 
 def cmd_init(_: argparse.Namespace) -> int:
@@ -76,17 +101,18 @@ def cmd_scan(args: argparse.Namespace) -> int:
 
 def _render_scan_ui(result) -> None:
     context = result.context
-    print(c("● NetCheck scan complete", Ansi.green + Ansi.bold))
-    print(c("─" * 72, Ansi.dim))
+    print(c("✓  Scan complete", Ansi.green + Ansi.bold))
 
-    print(c("Environment", Ansi.bold))
-    print(f"  Collected at: {result.created_at}")
-    print(f"  OS: {context.get('platform', 'unknown')}")
-    print(f"  Default interface: {context.get('adapter', 'unknown')}")
-    print(f"  Gateway: {context.get('gateway') or 'n/a'}")
-    print(f"  DNS: {', '.join(context.get('dns', [])) or 'n/a'}")
-    print(f"  Active Wi-Fi: {context.get('ssid') or 'n/a'} ({context.get('auth') or 'unknown'})")
-    print()
+    _section_title("Environment")
+    env_lines = [
+        f"Collected at: {result.created_at}",
+        f"OS: {context.get('platform', 'unknown')}",
+        f"Default interface: {context.get('adapter', 'unknown')}",
+        f"Gateway: {context.get('gateway') or 'n/a'}",
+        f"DNS: {', '.join(context.get('dns', [])) or 'n/a'}",
+        f"Active Wi-Fi: {context.get('ssid') or 'n/a'} ({context.get('auth') or 'unknown'})",
+    ]
+    _boxed(env_lines)
 
     counts = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
     for f in result.findings:
@@ -94,47 +120,37 @@ def _render_scan_ui(result) -> None:
         if key in counts:
             counts[key] += 1
 
-    print(c("Scan summary", Ansi.bold))
-    print(f"  Risk score: {result.risk_score}/100")
-    print(f"  Findings: {len(result.findings)}")
-    sev_row = (
-        f"{c('Critical', Ansi.magenta)} {counts['critical']} | "
-        f"{c('High', Ansi.red)} {counts['high']} | "
-        f"{c('Medium', Ansi.yellow)} {counts['medium']} | "
-        f"{c('Low', Ansi.cyan)} {counts['low']} | "
-        f"Info {counts['info']}"
-    )
-    print(f"  {sev_row}")
-    print(c("─" * 72, Ansi.dim))
+    _section_title("Scan summary")
+    summary_lines = [
+        f"Risk score: {result.risk_score}/100",
+        f"Findings: {len(result.findings)}",
+        (
+            f"{c('Critical', Ansi.magenta)} {counts['critical']} | "
+            f"{c('High', Ansi.red)} {counts['high']} | "
+            f"{c('Medium', Ansi.yellow)} {counts['medium']} | "
+            f"{c('Low', Ansi.cyan)} {counts['low']} | Info {counts['info']}"
+        ),
+    ]
+    _boxed(summary_lines)
 
     if not result.findings:
         print(c("No findings detected.", Ansi.green))
         return
 
-    print(c("Findings", Ansi.bold))
-    for idx, f in enumerate(result.findings, start=1):
+    print(c("─" * 70, Ansi.dim))
+    for f in result.findings:
         sev = c(f"[{f.severity.upper()}]", severity_color(f.severity) + Ansi.bold)
-        print(f"{idx:>2}. {sev} {f.title}")
-        print(f"    Category: {f.category}")
-        print(f"    Details: {f.details}")
-        print(f"    Confidence: {f.confidence}")
-        if idx != len(result.findings):
-            print(c("    ···", Ansi.dim))
+        print(f"{sev} {c(f.title, Ansi.bold)}")
+        print(f" Category: {f.category}")
+        print(f" Evidence: {f.details}")
+        print(f" Fix: {_suggest_fix(f.category)}")
+        print()
 
 
 def cmd_doctor(_: argparse.Namespace) -> int:
     ensure_storage()
     print(c("NetCheck doctor", Ansi.bold))
-    print(c("─" * 72, Ansi.dim))
-    print(c("Diagnostics", Ansi.bold))
-    print(f"  Python: {platform.python_version()}")
-    print(f"  Platform: {platform.platform()}")
-    print(f"  Data dir: {DATA_DIR}")
-    print(f"  Config path: {CONFIG_PATH}")
-    print(f"  DB path: {DB_PATH}")
-    print(f"  Config exists: {CONFIG_PATH.exists()}")
-    print(f"  DB exists: {DB_PATH.exists()}")
-    print(f"  AI provider: {load_config()['ai']['provider']}")
+    _section_title("Diagnostics")
 
     scan_count = 0
     findings_count = 0
@@ -149,18 +165,26 @@ def cmd_doctor(_: argparse.Namespace) -> int:
     except Exception:
         db_ok = False
 
-    print(f"  DB readable: {db_ok}")
-    print(f"  Stored scans: {scan_count}")
-    print(f"  Stored findings: {findings_count}")
+    diag_lines = [
+        f"Python: {platform.python_version()}",
+        f"Platform: {platform.platform()}",
+        f"App dir: {DATA_DIR}",
+        f"Config: {CONFIG_PATH}",
+        f"DB: {DB_PATH}",
+        f"DB readable: {db_ok}",
+        f"Stored scans: {scan_count}",
+        f"Stored findings: {findings_count}",
+        f"AI provider: {load_config()['ai']['provider']}",
+    ]
+    _boxed(diag_lines)
 
     latest = recent_scans(limit=1)
-    print(c("─" * 72, Ansi.dim))
     if latest:
         s = latest[0]
         print(c("Latest scan", Ansi.bold))
-        print(f"  Time: {s['created_at']}")
-        print(f"  Risk: {s['risk_score']}")
-        print(f"  Findings: {len(s['findings'])}")
+        print(f" Time: {s['created_at']}")
+        print(f" Risk: {s['risk_score']}")
+        print(f" Findings: {len(s['findings'])}")
     else:
         print("Latest scan: none")
     return 0
