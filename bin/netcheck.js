@@ -2,6 +2,7 @@
 
 const { spawnSync } = require('node:child_process');
 
+const HELP = `NetCheck CLI\n\nUsage:\n  netcheck <command> [options]\n\nCommands:\n  init             Create local config and defaults\n  scan             One-time vulnerability scan\n  watch            Monitor connection changes and rescan\n  web              Start local dashboard + open browser\n  report --json    Export findings\n  ai setup         Explain AI setup\n  ai set           Configure AI provider\n  ai test          Test AI configuration\n\nSupported AI providers:\n  none, openai, claude, copilot, opencode\n\nInstall:\n  # from repo folder\n  npm install -g .\n  pnpm add -g .\n`;
 const HELP = `NetCheck CLI\n\nUsage:\n  netcheck <command> [options]\n\nCommands:\n  init             Create local config and defaults\n  scan             One-time vulnerability scan\n  watch            Monitor connection changes and rescan\n  web              Start local dashboard + open browser\n  report --json    Export findings\n  ai setup         Explain AI setup\n  ai set           Configure AI provider\n  ai test          Test AI configuration\n\nSupported AI providers:\n  none, openai, claude, copilot, opencode\n\nInstall:\n  npm install -g @netcheck/cli\n  pnpm add -g @netcheck/cli\n`;
 
 const args = process.argv.slice(2);
